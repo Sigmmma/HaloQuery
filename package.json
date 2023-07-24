@@ -1,0 +1,28 @@
+{
+  "name": "@mimickal/haloquery",
+  "version": "0.0.0",
+  "description": "A library and command-line application for querying Gearbox Halo multiplayer master servers",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm lib/*",
+    "prepack": "npm run clean && npm run build && npm test",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm test",
+    "test": "echo \"Note: No tests yet\""
+  },
+  "keywords": [
+    "halo-ce",
+    "halo",
+    "games",
+    "gamespy",
+    "query"
+  ],
+  "author": "Mimickal <mimickal.dev@gmail.com>",
+  "license": "AGPL-3.0",
+  "devDependencies": {
+    "@types/node": "^20.4.4",
+    "typescript": "^5.1.6"
+  }
+}

@@ -1,0 +1,13 @@
+# Vim things
+*.swp
+
+# Node things
+node_modules
+coverage
+.nyc_output
+lib
+*.tgz
+
+# My dev things
+temp
+todo
