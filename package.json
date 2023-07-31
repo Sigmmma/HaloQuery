@@ -1,5 +1,5 @@
 {
-  "name": "@mimickal/haloquery",
+  "name": "@mimickal/halo-query",
   "version": "0.0.0",
   "description": "A library and command-line application for querying Gearbox Halo multiplayer master servers",
   "main": "lib/index.js",
