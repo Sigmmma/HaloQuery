@@ -10,7 +10,7 @@
     "prepack": "npm run clean && npm run build && npm test",
     "prepare": "npm run build",
     "prepublishOnly": "npm test",
-    "test": "echo \"Note: No tests yet\""
+    "test-qur": "npm run build && node ./lib/gamespy.js"
   },
   "keywords": [
     "halo-ce",
