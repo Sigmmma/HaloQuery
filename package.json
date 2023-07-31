@@ -4,12 +4,15 @@
   "description": "A library and command-line application for querying Gearbox Halo multiplayer master servers",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
+  "gypfile": true,
   "scripts": {
-    "build": "tsc",
-    "clean": "rm lib/*",
+    "build": "npm run build:gyp && npm run build:tsc",
+    "build:gyp": "node-gyp rebuild",
+    "build:tsc": "tsc",
+    "clean": "rm -r lib/* build/*",
     "prepack": "npm run clean && npm run build && npm test",
-    "prepare": "npm run build",
     "prepublishOnly": "npm test",
+    "test-decrypt": "npm install && node ./lib/test.js",
     "test-qur": "npm run build && node ./lib/gamespy.js"
   },
   "keywords": [
@@ -23,6 +26,11 @@
   "license": "AGPL-3.0",
   "devDependencies": {
     "@types/node": "^20.4.4",
+    "node-gyp": "^9.4.0",
     "typescript": "^5.1.6"
+  },
+  "dependencies": {
+    "commander": "^11.0.0",
+    "node-addon-api": "^7.0.0"
   }
 }

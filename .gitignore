@@ -5,9 +5,14 @@
 node_modules
 coverage
 .nyc_output
+build
 lib
 *.tgz
 
 # My dev things
 temp
 todo
+gslist-master
+enctypedec
+*.bin
+*.txt
