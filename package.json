@@ -5,6 +5,9 @@
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "gypfile": true,
+  "bin": {
+    "halo-query": "./lib/cli.js"
+  },
   "scripts": {
     "build": "npm run build:gyp && npm run build:tsc",
     "build:gyp": "node-gyp rebuild",
@@ -12,7 +15,8 @@
     "clean": "rm -r lib/* build/*",
     "prepack": "npm run clean && npm run build && npm test",
     "prepublishOnly": "npm test",
-    "test": "echo 'No tests yet!'"
+    "test": "echo 'No tests yet!'",
+    "test-cli": "npm run build:tsc && node ./lib/cli.js"
   },
   "keywords": [
     "halo-ce",
@@ -26,7 +30,8 @@
   "devDependencies": {
     "@types/node": "^20.4.4",
     "node-gyp": "^9.4.0",
-    "typescript": "^5.1.6"
+    "typescript": "^5.1.6",
+    "utility-types": "^3.10.0"
   },
   "dependencies": {
     "commander": "^11.0.0",

@@ -19,21 +19,14 @@ const DATA_END_IP_SENTINEL = '255.255.255.255';
 /** Encoded IP/port data. 4 bytes for IP, 2 bytes for port. */
 const IP_PORT_LEN = 6;
 
-// Halo Beta                                             halo               QW88cv
-// Halo Demo                                             halod              yG3d9w
-// Halo Demo (Mac)                                       halomacd           e4Rd9J
-// Halo Mac                                              halomac            e4Rd9J
-// Halo Multiplayer Expansion                            halom              e4Rd9J
-// Halo: Combat Evolved                                  halor              e4Rd9J
-
-const GAME_KEY_LOOKUP = Object.freeze({
-	halo:     'QW88cv',
-	halod:    'yG3d9w',
-	halomacd: 'e4Rd9J',
-	halomac:  'e4Rd9J',
-	halom:    'e4Rd9J',
-	halor:    'e4Rd9J',
-});
+export enum GameKeys {
+	halo     = 'QW88cv',
+	halod    = 'yG3d9w',
+	halomacd = 'e4Rd9J',
+	halomac  = 'e4Rd9J',
+	halom    = 'e4Rd9J',
+	halor    = 'e4Rd9J',
+}
 
 interface DecodedData {
 	requestIp: string;
@@ -64,10 +57,10 @@ enum Flags {
  * Retrieves the list of all known public dedicated servers from the GameSpy
  * master server for the given game.
  *
- * @param game GameSpy game code. See {@link GAME_KEY_LOOKUP}.
+ * @param game GameSpy game code. See {@link GameKeys}.
  */
 export async function getMasterServerList(game: string): Promise<ServerAddress[]> {
-	if (!Object.keys(GAME_KEY_LOOKUP).includes(game)) {
+	if (!Object.keys(GameKeys).includes(game)) {
 		throw new Error(`Unsupported game key: ${game}`);
 	}
 
@@ -75,7 +68,7 @@ export async function getMasterServerList(game: string): Promise<ServerAddress[]
 	client.setTimeout(DEFAULT_TIMEOUT_MS);
 	await client.connect({ host: DEFAULT_MASTER_HOST, port: DEFAULT_MASTER_PORT });
 
-	const gameKey = GAME_KEY_LOOKUP[game as keyof typeof GAME_KEY_LOOKUP];
+	const gameKey = GameKeys[game as keyof typeof GameKeys];
 	const validationKey = makeValidationKey();
 
 	const query = encodeMasterServerRequest(game, validationKey);
