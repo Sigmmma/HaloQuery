@@ -12,8 +12,7 @@
     "clean": "rm -r lib/* build/*",
     "prepack": "npm run clean && npm run build && npm test",
     "prepublishOnly": "npm test",
-    "test-decrypt": "npm install && node ./lib/test.js",
-    "test-qur": "npm run build && node ./lib/gamespy.js"
+    "test": "echo 'No tests yet!'"
   },
   "keywords": [
     "halo-ce",
