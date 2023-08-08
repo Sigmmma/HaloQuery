@@ -9,9 +9,12 @@
 import UDP from 'dgram';
 import * as TCP from 'net';
 
-interface UDPResponse {
+export interface ServerAddress {
 	address: string;
 	port: number;
+}
+
+export type UDPResponse = ServerAddress & {
 	data: Buffer;
 }
 
@@ -126,12 +129,12 @@ export class UDPClient {
 
 	/** Convenience method that combines {@link read} and {@link write}. */
 	async request(
-		ip: string,
+		address: string,
 		port: number,
 		message: Uint8Array | string,
 		timeout = DEFAULT_TIMEOUT_MS,
 	): Promise<UDPResponse> {
-		await this.write(ip, port, message);
+		await this.write(address, port, message);
 		return await this.read(timeout);
 	}
 
@@ -139,9 +142,9 @@ export class UDPClient {
 	 * Writes the given data to the socket.
 	 * Promise resolves once all data has been flushed.
 	 */
-	async write(ip: string, port: number, message: Uint8Array | string): Promise<number> {
+	async write(address: string, port: number, message: Uint8Array | string): Promise<number> {
 		return new Promise((resolve, reject) => {
-			this.socket.send(message, port, ip, (err, bytesWritten) => {
+			this.socket.send(message, port, address, (err, bytesWritten) => {
 				if (err) reject(err);
 				resolve(bytesWritten);
 			});

@@ -7,7 +7,7 @@
  * for more information.
  ******************************************************************************/
 import { decryptx } from './gamespy-crypto';
-import { TCPClient } from './network';
+import { ServerAddress, TCPClient } from './network';
 
 const DEFAULT_MASTER_HOST = 'hosthpc.com';
 const DEFAULT_MASTER_PORT = 28910;
@@ -27,6 +27,7 @@ export enum GameKeys {
 	halom    = 'e4Rd9J',
 	halor    = 'e4Rd9J',
 }
+export type MasterServer = keyof typeof GameKeys;
 
 interface DecodedData {
 	requestIp: string;
@@ -34,11 +35,6 @@ interface DecodedData {
 	unknown1: string;
 	unknown2: string;
 	servers: ServerAddress[];
-}
-
-export interface ServerAddress {
-	ip: string;
-	port: number;
 }
 
 /**
@@ -165,7 +161,7 @@ function decodeMasterServerResponse(data: Buffer): DecodedData | null {
 
 	// Get the requester's IP and common port.
 	const {
-		ip: requestIp,
+		address: requestIp,
 		port: commonPort,
 	} = extractAddress(data.subarray(scanner, IP_PORT_LEN));
 	scanner += IP_PORT_LEN;
@@ -197,14 +193,15 @@ function decodeMasterServerResponse(data: Buffer): DecodedData | null {
 		if (flag & Flags.C) len += 2;
 		if (flag & Flags.D) len += 2;
 
-		const { ip, port } = extractAddress(data.subarray(scanner, scanner + IP_PORT_LEN));
+		const { address, port } =
+			extractAddress(data.subarray(scanner, scanner + IP_PORT_LEN));
 		scanner += IP_PORT_LEN + len - 1;
 
-		if (flag === 0 && ip === DATA_END_IP_SENTINEL) {
+		if (flag === 0 && address === DATA_END_IP_SENTINEL) {
 			break;
 		}
 
-		servers.push({ ip, port });
+		servers.push({ address, port });
 	}
 
 	return {
@@ -220,7 +217,7 @@ function decodeMasterServerResponse(data: Buffer): DecodedData | null {
 function extractAddress(slice: Buffer): ServerAddress {
 	const [ip1, ip2, ip3, ip4, port1, port2] = slice;
 	return {
-		ip: `${ip1}.${ip2}.${ip3}.${ip4}`,
+		address: `${ip1}.${ip2}.${ip3}.${ip4}`,
 		port: (port1 << 8) | port2,
 	};
 }
