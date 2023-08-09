@@ -2,36 +2,43 @@ import { GameKeys, MasterServer, getMasterServerList } from './gamespy';
 import { ServerAddress, UDPClient, UDPResponse } from './network';
 
 export type ServerArg = ServerAddress | MasterServer;
-type ServerMap = Map<MasterServer | null, ServerAddress[]>;
+export type Server = ServerAddress & {
+	game: string | null;
+};
 
 /**
- * Given a list of servers, returns the servers in a map grouped by game.
+ * Resolves a mixed list of addresses and master server names into a list of
+ * game server addresses.
  *
- * @param servers A list of either IP/port (address), or the name of a game.
- * - If the name of a game is given, the game's master server is queried for a
- * list of all current server addresses.
- * - If an address is given, it is simply grouped under the `null` key, since we
- * can't know what game it's for.
+ * @param args A list where each item is either an IP/port (address) for an
+ * individual game server, or the internal GameSpy name of a game.
+ * - If a game name is given, the game's master server is queried for a list of
+ * all current server addresses.
+ * - If an address is given, it is simply added to the resulting list with the
+ * `game` key set to `null`, since we can't know what game it's for.
  */
-export async function getServersGroupedByGame(servers: ServerArg[]): Promise<ServerMap> {
-	const groups: ServerMap = new Map();
+export async function resolveServers(args: ServerArg[]): Promise<Server[]> {
+	const servers: Server[] = [];
 
-	for await (const server of servers) {
-		if (typeof server === 'string' && Object.keys(GameKeys).includes(server)) {
-			const serversForGame = await getMasterServerList(server);
-			groups.set(server, serversForGame);
-		}
-		else if (typeof server === 'object') {
-			if (!groups.has(null)) {
-				groups.set(null, []);
-			}
-
-			groups.get(null)!.push(server);
-		}
-		else {
-			throw new Error(`Invalid server name: ${server}`);
+	for await (const arg of args) {
+		if (typeof arg === 'string' && Object.keys(GameKeys).includes(arg)) {
+			const serversForGame = await getMasterServerList(arg);
+			servers.push(
+				...serversForGame.map(server => ({
+					...server,
+					game: arg,
+				}))
+			);
+		} else if (typeof arg === 'object') {
+			servers.push({
+				...arg,
+				game: null,
+			});
+		} else {
+			throw new Error(`Invalid server name: ${arg}`);
 		}
 	}
 
-	return groups;
+	return servers;
+}
 }
