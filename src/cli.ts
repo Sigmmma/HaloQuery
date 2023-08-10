@@ -11,7 +11,7 @@ import { Command, Option } from 'commander';
 import { Optional } from 'utility-types';
 
 import { GameKeys, MasterServer } from './gamespy';
-import { resolveServers } from './handler';
+import { parseServerInfo, queryServerInfo, resolveServers } from './handler';
 import { ServerAddress } from './network';
 
 const PACKAGE = require('../package.json');
@@ -147,7 +147,25 @@ async function main() {
 		}
 	}
 	else {
+		const responses = await queryServerInfo(servers);
 
+		if (cliArgs.getOptionValue('raw')) {
+			responses?.forEach(response => {
+				console.log(`\\game\\${response.game}\\ip\\${response.address}\\port\\${response.port}${response.data}`);
+			});
+		}
+		else {
+			const parsed = responses?.map(resp => ({
+				...resp,
+				data: parseServerInfo(resp.data as string),
+			}))
+
+			if (cliArgs.getOptionValue('pretty')) {
+				console.log(JSON.stringify(parsed, null, 2));
+			} else {
+				console.log(JSON.stringify(parsed));
+			}
+		}
 	}
 }
 main();
