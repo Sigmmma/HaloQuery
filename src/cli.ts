@@ -23,7 +23,6 @@ import { ServerAddress } from './network';
 const PACKAGE = require('../package.json');
 
 const DEFAULT_SERVER_PORT = 2302;
-const IP_REGEX = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
 
 enum CLIMasterServer {
 	ce      = 'Halo Custom Edition.',
@@ -66,7 +65,7 @@ const cliArgs = new Command()
 	)
 	.option('-a --address-only', 'Only output server addresses', false)
 	.option('-j --json', 'Output as JSON.')
-	.option('-m --master-server-host <string>', 'Override default master server host / IP.')
+	.option('-m --master-server-host <string>', 'Override default master server host / IP.', parseCLIAddress)
 	.option('-p --port <number>', 'Override default UDP port for game servers.', parsePort)
 	.option('-t --timeout <number>', 'Request timeout in milliseconds.', Number.parseInt)
 	.addOption(new Option('-r, --raw', 'Output as raw query response string.')
@@ -91,40 +90,26 @@ function parseServer(value: string, previous: CLIServerArg[]): CLIServerArg[] {
 	if (Object.keys(CLIMasterServer).includes(value)) {
 		arg = CLI_MASTER_NAME_TRANSLATE[value as CLIMasterServerName];
 	} else {
-		const [address, portStr] = value.split(':');
-		const port = portStr ? Number.parseInt(portStr) : undefined;
-
-		if (!IP_REGEX.test(address) || (port && !isValidPort(port))) {
-			console.error(`Error: Invalid server argument "${value}"!`);
-			console.error([
-				'Server arguments must either be an IP in the form of',
-				'111.222.333.444 or 111.222.333.4444:55555,',
-				'or a known master server name',
-				`(${Object.keys(CLIMasterServer)
-					.map(name => `"${name}"`)
-					.join(', ')
-				}).`,
-			].join(' '));
-			process.exit(1);
-		}
-
-		arg = { address, port };
+		arg = parseCLIAddress(value);
 	}
 
 	return [...previous ?? [], arg];
 }
 
+/** Parses a string address into an IP and a port. */
+function parseCLIAddress(value: string): CLIAddress {
+	const [address, portStr] = value.split(':');
+	const port = portStr ? parsePort(portStr) : undefined;
+	return { address, port };
+} 
+
 /** Parses and validates a port number. */
 function parsePort(value: string): number {
 	const port = Number.parseInt(value);
-	if (!isValidPort(port)) {
+	if (!Number.isNaN(port) && 0 < port && port < 0xFFFF) {
 		throw new Error(`Invalid port: ${port}`);
 	}
 	return port;
-}
-
-function isValidPort(port: number): boolean {
-	return !Number.isNaN(port) && 0 < port && port < 0xFFFF;
 }
 
 /** Stringifies a Server. */
@@ -134,23 +119,33 @@ function serverString(server: Server | ServerResponse): string {
 
 async function main() {
 	const serverArgs = (cliArgs.processedArgs[0] as CLIServerArg[]);
-	const defaultPort = cliArgs.getOptionValue('port') ?? DEFAULT_SERVER_PORT;
+	const printAddressOnly: boolean          = cliArgs.getOptionValue('addressOnly');
+	const msOverride: CLIAddress | undefined = cliArgs.getOptionValue('masterServerHost');
+	const prettyPrintJson: boolean           = cliArgs.getOptionValue('pretty');
+	const defaultPort: number                = cliArgs.getOptionValue('port') ?? DEFAULT_SERVER_PORT;
+	const printRawText: boolean              = cliArgs.getOptionValue('raw');
+	const timeout: number | undefined        = cliArgs.getOptionValue('timeout');
 
 	const servers = await resolveServers(
 		serverArgs.map(arg => typeof arg === 'string' ? arg : {
 			address: arg.address,
 			port: arg.port ?? defaultPort,
-		})
+		}),
+		{
+			host: msOverride?.address,
+			port: msOverride?.port,
+			timeout,
+		}
 	);
 
-	if (cliArgs.getOptionValue('addressOnly')) {
-		if (cliArgs.getOptionValue('raw')) {
+	if (printAddressOnly) {
+		if (printRawText) {
 			servers.forEach(server => {
 				console.log(serverString(server));
 			});
 		}
 		else {
-			if (cliArgs.getOptionValue('pretty')) {
+			if (prettyPrintJson) {
 				console.log(JSON.stringify(servers, null, 2));
 			} else {
 				console.log(JSON.stringify(servers));
@@ -160,7 +155,7 @@ async function main() {
 	else {
 		const responses = await queryServerInfo(servers);
 
-		if (cliArgs.getOptionValue('raw')) {
+		if (printRawText) {
 			responses?.forEach(response => {
 				console.log(`${serverString(response)}${response.data}`);
 			});
@@ -171,7 +166,7 @@ async function main() {
 				data: parseServerInfo(resp.data as string),
 			}))
 
-			if (cliArgs.getOptionValue('pretty')) {
+			if (prettyPrintJson) {
 				console.log(JSON.stringify(parsed, null, 2));
 			} else {
 				console.log(JSON.stringify(parsed));

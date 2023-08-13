@@ -37,6 +37,12 @@ interface DecodedData {
 	servers: ServerAddress[];
 }
 
+export interface MasterServerFetchOpts {
+	host?: string;
+	port?: number;
+	timeout?: number;
+}
+
 /**
  * Flags for game server info in the master server response data.
  * The meaning of these values is currently unknown.
@@ -54,15 +60,22 @@ enum Flags {
  * master server for the given game.
  *
  * @param game GameSpy game code. See {@link GameKeys}.
+ * @param opts Options to configure the fetch.
  */
-export async function getMasterServerList(game: string): Promise<ServerAddress[]> {
+export async function getMasterServerList(
+	game: string,
+	opts?: MasterServerFetchOpts,
+): Promise<ServerAddress[]> {
 	if (!Object.keys(GameKeys).includes(game)) {
 		throw new Error(`Unsupported game key: ${game}`);
 	}
 
 	const client = new TCPClient();
-	client.setTimeout(DEFAULT_TIMEOUT_MS);
-	await client.connect({ host: DEFAULT_MASTER_HOST, port: DEFAULT_MASTER_PORT });
+	client.setTimeout(opts?.timeout ?? DEFAULT_TIMEOUT_MS);
+	await client.connect({
+		host: opts?.host ?? DEFAULT_MASTER_HOST,
+		port: opts?.port ?? DEFAULT_MASTER_PORT,
+	});
 
 	const gameKey = GameKeys[game as keyof typeof GameKeys];
 	const validationKey = makeValidationKey();

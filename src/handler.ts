@@ -6,7 +6,7 @@
  * See LICENSE.md or <https://www.gnu.org/licenses/lgpl-3.0.en.html>
  * for more information.
  ******************************************************************************/
-import { GameKeys, MasterServer, getMasterServerList } from './gamespy';
+import { GameKeys, MasterServer, MasterServerFetchOpts, getMasterServerList } from './gamespy';
 import { ServerAddress, UDPClient } from './network';
 
 export type ServerArg = ServerAddress | MasterServer;
@@ -48,13 +48,17 @@ const TEAM_VALUE_REGEX = /^(\w+)_t(\d+)$/;
  * all current server addresses.
  * - If an address is given, it is simply added to the resulting list with the
  * `game` key set to `null`, since we can't know what game it's for.
+ * @param opts Options to configure the master server fetch.
  */
-export async function resolveServers(args: ServerArg[]): Promise<Server[]> {
+export async function resolveServers(
+	args: ServerArg[],
+	opts?: MasterServerFetchOpts,
+): Promise<Server[]> {
 	const servers: Server[] = [];
 
 	for await (const arg of args) {
 		if (typeof arg === 'string' && Object.keys(GameKeys).includes(arg)) {
-			const serversForGame = await getMasterServerList(arg);
+			const serversForGame = await getMasterServerList(arg, opts);
 			servers.push(
 				...serversForGame.map(server => ({
 					...server,
@@ -75,7 +79,10 @@ export async function resolveServers(args: ServerArg[]): Promise<Server[]> {
 }
 
 /** Queries info from the given game servers. */
-export async function queryServerInfo(servers: Server[]): Promise<ServerResponse[] | null> {
+export async function queryServerInfo(
+	servers: Server[],
+	timeout?: number,
+): Promise<ServerResponse[] | null> {
 	// Need map of ip:port -> game so we can map UDP responses to game.
 	// The key is in the same format returned by UDPClient::readAll.
 	const addressGameMap = servers.reduce((map, server) => {
@@ -87,7 +94,7 @@ export async function queryServerInfo(servers: Server[]): Promise<ServerResponse
 	await Promise.all(servers.map(async (server) => (
 		client.write(server.address, server.port, '\\')
 	)));
-	const responses = await client.readAll(/* TODO timeout */);
+	const responses = await client.readAll(timeout);
 
 	client.close();
 
