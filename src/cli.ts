@@ -11,7 +11,13 @@ import { Command, Option } from 'commander';
 import { Optional } from 'utility-types';
 
 import { GameKeys, MasterServer } from './gamespy';
-import { parseServerInfo, queryServerInfo, resolveServers } from './handler';
+import {
+	Server,
+	ServerResponse,
+	parseServerInfo,
+	queryServerInfo,
+	resolveServers,
+} from './handler';
 import { ServerAddress } from './network';
 
 const PACKAGE = require('../package.json');
@@ -121,6 +127,11 @@ function isValidPort(port: number): boolean {
 	return !Number.isNaN(port) && 0 < port && port < 0xFFFF;
 }
 
+/** Stringifies a Server. */
+function serverString(server: Server | ServerResponse): string {
+	return `\\game\\${server.game}\\ip\\${server.address}\\port\\${server.port}`;
+}
+
 async function main() {
 	const serverArgs = (cliArgs.processedArgs[0] as CLIServerArg[]);
 	const defaultPort = cliArgs.getOptionValue('port') ?? DEFAULT_SERVER_PORT;
@@ -135,7 +146,7 @@ async function main() {
 	if (cliArgs.getOptionValue('addressOnly')) {
 		if (cliArgs.getOptionValue('raw')) {
 			servers.forEach(server => {
-				console.log(`\\game\\${server.game}\\ip\\${server.address}\\port\\${server.port}`);
+				console.log(serverString(server));
 			});
 		}
 		else {
@@ -151,7 +162,7 @@ async function main() {
 
 		if (cliArgs.getOptionValue('raw')) {
 			responses?.forEach(response => {
-				console.log(`\\game\\${response.game}\\ip\\${response.address}\\port\\${response.port}${response.data}`);
+				console.log(`${serverString(response)}${response.data}`);
 			});
 		}
 		else {

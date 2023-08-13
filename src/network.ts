@@ -77,7 +77,7 @@ export class UDPClient {
 	 * - It's non-trivial (sometimes impossible) to detect an end point by
 	 *   analyzing the data itself.
 	 */
-	async readAll(endDelay = DEFAULT_END_DELAY_MS): Promise<Map<string, UDPResponse> | null> {
+	async readAll(endDelay = DEFAULT_END_DELAY_MS): Promise<UDPResponse[] | null> {
 		return new Promise((resolve, reject) => {
 			const messageGroups = new Map<string, UDPResponse[]>();
 
@@ -106,15 +106,16 @@ export class UDPClient {
 				// Reduce each sender's buffer array down to a single buffer
 				resolve(messageGroups.size === 0
 					? null
-					: Array.from(messageGroups.keys()).reduce((map, key) => {
+					: Array.from(messageGroups.keys()).reduce<UDPResponse[]>((list, key) => {
 						// This list is guaranteed to have at least one message.
 						const messages = messageGroups.get(key)!;
-						return map.set(key, {
+						list.push({
 							address: messages[0].address,
 							port: messages[0].port,
 							data: Buffer.concat(messages.map(msg => msg.data)),
 						});
-					}, new Map<string, UDPResponse>())
+						return list;
+					}, [])
 				);
 			}, endDelay);
 

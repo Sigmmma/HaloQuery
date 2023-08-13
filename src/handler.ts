@@ -1,5 +1,13 @@
+/*******************************************************************************
+ * This file is part of halo-query, a Halo server query library for Node.js.
+ * Copyright (C) 2023 Mimickal (Mia Moretti).
+ *
+ * halo-query is free software under the GNU Lesser General Public License v3.0.
+ * See LICENSE.md or <https://www.gnu.org/licenses/lgpl-3.0.en.html>
+ * for more information.
+ ******************************************************************************/
 import { GameKeys, MasterServer, getMasterServerList } from './gamespy';
-import { ServerAddress, UDPClient, UDPResponse } from './network';
+import { ServerAddress, UDPClient } from './network';
 
 export type ServerArg = ServerAddress | MasterServer;
 export type Server = ServerAddress & {
@@ -79,17 +87,16 @@ export async function queryServerInfo(servers: Server[]): Promise<ServerResponse
 	await Promise.all(servers.map(async (server) => (
 		client.write(server.address, server.port, '\\')
 	)));
-	// TODO change this, this doesn't need to be a map.
 	const responses = await client.readAll(/* TODO timeout */);
 
 	client.close();
 
-	return Array.from(responses!.values()).map(response => ({
+	return responses?.map(response => ({
 		address: response.address,
 		port: response.port,
 		data: response.data.toString(),
 		game: addressGameMap.get(`${response.address}:${response.port}`) ?? null,
-	}));
+	})) ?? null;
 }
 
 /** Splits the \\key1\\value1\\key2\\value2 strings into an object. */
