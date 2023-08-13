@@ -9,6 +9,27 @@ export type ServerResponse = Server & {
 	data: string | Record<string, unknown>;
 }
 
+type InfoValue = string | number | null;
+
+interface ServerInfo {
+	hostname?: string;
+	players?: {
+		[key: string]: InfoValue;
+	}[];
+	teams?: {
+		[key: string]: InfoValue;
+	}[];
+	[key: string]: unknown;
+}
+
+/** Allows us to extract hostnames with backslashes in them. */
+const HOSTNAME_REGEX = /^\\hostname\\(.*)\\gamever/;
+
+/** Extracts key and index from player values like "score_1". */
+const PLAYER_VALUE_REGEX = /^(\w+)_(\d+)$/;
+/** Extracts key and index from team values, like "score_t1". */
+const TEAM_VALUE_REGEX = /^(\w+)_t(\d+)$/;
+
 /**
  * Resolves a mixed list of addresses and master server names into a list of
  * game server addresses.
@@ -72,9 +93,15 @@ export async function queryServerInfo(servers: Server[]): Promise<ServerResponse
 }
 
 /** Splits the \\key1\\value1\\key2\\value2 strings into an object. */
-export function parseServerInfo(data: string): Record<string, unknown> {
-	return data
-		.split('\\')
+export function parseServerInfo(data: string): ServerInfo {
+	// Annoyingly, "hostname" can have backslashes in it.
+	// Thankfully, "gamever" always follows, so we can just read until we see that.
+	const hostname = HOSTNAME_REGEX.exec(data)?.[1];
+
+	const start = data.indexOf('gamever');
+	const parts = data.substring(start).split('\\');
+
+	return parts
 		.reduce<string[][]>((groups, item, i) => {
 			if (i % 2 === 0) {
 				groups.push([item]);
@@ -83,8 +110,40 @@ export function parseServerInfo(data: string): Record<string, unknown> {
 			}
 			return groups;
 		}, [])
-		.reduce<Record<string, unknown>>((record, [key, value]) => {
-			record[key] = value;
+		.reduce<ServerInfo>((record, [key, value]) => {
+			let parent: 'teams'|'players'|null = null;
+			let match: RegExpExecArray | null;
+
+			if (match = TEAM_VALUE_REGEX.exec(key)) {
+				parent = 'teams';
+			} else if (match = PLAYER_VALUE_REGEX.exec(key)) {
+				parent = 'players';
+			}
+
+			if (parent && match) {
+				const subKey = match[1];
+				const index = Number.parseInt(match[2]);
+
+				// If only we had Perl's auto-vivification...
+				if (!record[parent])         record[parent] = [];
+				if (!record[parent]![index]) record[parent]![index] = {};
+				record[parent]![index][subKey] = parseValue(value);
+			} else if (key === 'player_flags') {
+				record[key] = value.split(',').map(num => Number.parseInt(num));
+			} else {
+				record[key] = parseValue(value);
+			}
+
 			return record;
-		}, {});
+		}, { hostname });
+}
+
+/** Parses a server response value into the most appropriate type. */
+function parseValue(value: string): InfoValue {
+	const num = Number.parseInt(value);
+	if (Number.isNaN(num)) {
+		return value === '' ? null : value;
+	} else {
+		return num;
+	}
 }
