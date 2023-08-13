@@ -126,17 +126,23 @@ async function main() {
 	const printRawText: boolean              = cliArgs.getOptionValue('raw');
 	const timeout: number | undefined        = cliArgs.getOptionValue('timeout');
 
-	const servers = await resolveServers(
-		serverArgs.map(arg => typeof arg === 'string' ? arg : {
-			address: arg.address,
-			port: arg.port ?? defaultPort,
-		}),
-		{
-			host: msOverride?.address,
-			port: msOverride?.port,
-			timeout,
-		}
-	);
+	let servers: Server[];
+	try {
+		servers = await resolveServers(
+			serverArgs.map(arg => typeof arg === 'string' ? arg : {
+				address: arg.address,
+				port: arg.port ?? defaultPort,
+			}),
+			{
+				host: msOverride?.address,
+				port: msOverride?.port,
+				timeout,
+			}
+		);
+	} catch (err) {
+		console.error((err as Error).message);
+		process.exit(1);
+	}
 
 	if (printAddressOnly) {
 		if (printRawText) {

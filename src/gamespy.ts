@@ -72,10 +72,14 @@ export async function getMasterServerList(
 
 	const client = new TCPClient();
 	client.setTimeout(opts?.timeout ?? DEFAULT_TIMEOUT_MS);
-	await client.connect({
-		host: opts?.host ?? DEFAULT_MASTER_HOST,
-		port: opts?.port ?? DEFAULT_MASTER_PORT,
-	});
+	try {
+		await client.connect({
+			host: opts?.host ?? DEFAULT_MASTER_HOST,
+			port: opts?.port ?? DEFAULT_MASTER_PORT,
+		});
+	} catch (err) {
+		throw new Error(`Failed to query master server: ${(err as Error).message}`);
+	}
 
 	const gameKey = GameKeys[game as keyof typeof GameKeys];
 	const validationKey = makeValidationKey();
