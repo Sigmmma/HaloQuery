@@ -11,20 +11,24 @@
 // apparently somehow no package for Node.js that does this.
 
 /** Represents a single field in the {@link Struct}. */
-export interface Bitfield {
+export interface Bitfield<T> {
 	/** Name of field in final parsed value. */
-	name: string;
+	name: keyof T;
 	/** Size of field in bits. */
 	size: number;
 }
 
-/** Fallback type for the unpacked fields. */
-export type DecodedFields = Record<string, number>;
-
-/** Defines a bitfield struct that can decode values into named fields. */
-export class Struct {
-	private fields: Bitfield[];
-	private decodedFields: DecodedFields;
+/**
+ * Defines a bitfield struct that can decode values into named fields.
+ *
+ * @param T The type to unpack into.
+ * NOTE: due to a quirk in TypeScript, this type needs to be defined using
+ * `type XYZ = {...}`, not `interface XYZ {...}`
+ * https://github.com/microsoft/TypeScript/issues/15300#issuecomment-371353444
+ */
+export class Struct<T extends Record<string, number> = Record<string, number>> {
+	private fields: Bitfield<T>[];
+	private decodedFields: T;
 	private size: number;
 
 	/**
@@ -34,11 +38,10 @@ export class Struct {
 	 * @param size Size of packed value (e.g. 32 for a 32 bit integer).
 	 * @param fields The named fields of the bitfield, in left-to-right order.
 	 */
-	constructor(size: number, fields: Bitfield[]) {
+	constructor(size: number, fields: Bitfield<T>[]) {
 		this.size = size;
 		this.fields = fields;
-		this.decodedFields = {};
-
+		this.decodedFields = {} as T;
 		// TODO probably verify the sum of fieldDef sizes is <= size.
 	}
 
@@ -46,20 +49,24 @@ export class Struct {
 	 * Decodes the given value into fields according to the {@link Bitfield}s
 	 * this {@link Struct} was initialized with.
 	 */
-	decode(value: number): DecodedFields {
+	decode(value: number): T {
 		let offset = 0;
-		this.decodedFields = this.fields.reduce<DecodedFields>((record, def) => {
+		this.decodedFields = this.fields.reduce<T>((record, def) => {
 			const shift = this.size - (offset + def.size);
 			const mask = Array(def.size)
 				.fill(null)
 				.reduce((value) => (value << 1) | 1, 0);
-			record[def.name] = (value >> shift) & mask;
+
+			// Need this cast because TypeScript complains that T[keyof T]
+			// might not be a number, but TypeScript also complains if we try to
+			// pass in a type for T where that happens, so this is probably safe.
+			(record[def.name] as number) = (value >> shift) & mask;
 
 			console.log(def, shift, mask);
 
 			offset += def.size;
 			return record;
-		}, {});
+		}, {} as T);
 
 		return this.decodedFields;
 	}
@@ -80,8 +87,7 @@ export class Struct {
 	 * If no data has been decoded yet, this can still be used to set
 	 * field values and encode them.
 	 */
-	get data(): DecodedFields {
+	get data(): T {
 		return this.decodedFields;
 	}
 }
-
