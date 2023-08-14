@@ -14,11 +14,11 @@ import { GameKeys, MasterServer } from './gamespy';
 import {
 	Server,
 	ServerResponse,
-	parseServerInfo,
 	queryServerInfo,
 	resolveServers,
 } from './handler';
 import { ServerAddress } from './network';
+import { parseServerInfo } from './response';
 
 const PACKAGE = require('../package.json');
 
@@ -101,7 +101,7 @@ function parseCLIAddress(value: string): CLIAddress {
 	const [address, portStr] = value.split(':');
 	const port = portStr ? parsePort(portStr) : undefined;
 	return { address, port };
-} 
+}
 
 /** Parses and validates a port number. */
 function parsePort(value: string): number {
