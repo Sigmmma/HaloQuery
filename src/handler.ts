@@ -6,6 +6,7 @@
  * See LICENSE.md or <https://www.gnu.org/licenses/lgpl-3.0.en.html>
  * for more information.
  ******************************************************************************/
+import { Bitfield, Struct } from './bitfield';
 import { GameKeys, MasterServer, MasterServerFetchOpts, getMasterServerList } from './gamespy';
 import { ServerAddress, UDPClient } from './network';
 
@@ -92,6 +93,7 @@ export async function queryServerInfo(
 	const client = new UDPClient();
 
 	await Promise.all(servers.map(async (server) => (
+		// Game servers recognize a single backslash as an info query.
 		client.write(server.address, server.port, '\\')
 	)));
 	const responses = await client.readAll(timeout);
@@ -143,7 +145,19 @@ export function parseServerInfo(data: string): ServerInfo {
 				if (!record[parent]![index]) record[parent]![index] = {};
 				record[parent]![index][subKey] = parseValue(value);
 			} else if (key === 'player_flags') {
-				record[key] = value.split(',').map(num => Number.parseInt(num));
+				const [playerFlags, vehicleFlags] = value
+					.split(',')
+					.map(num => Number.parseInt(num));
+
+				record['player_flags'] = playerFlags;
+				record['player_flags_decoded'] = decodePlayerFlags(playerFlags);
+
+				record['vehicle_flags'] = vehicleFlags;
+				record['vehicle_flags_decoded'] = decodeVehicleFlags(vehicleFlags);
+			} else if (key === 'game_flags') {
+				const gameFlags = Number.parseInt(value);
+				record['game_flags'] = gameFlags;
+				record['game_flags_decoded'] = decodeGameFlags(gameFlags);
 			} else {
 				record[key] = parseValue(value);
 			}
@@ -159,5 +173,161 @@ function parseValue(value: string): InfoValue {
 		return value === '' ? null : value;
 	} else {
 		return num;
+	}
+}
+
+/* Shoutout to Chaosvex for their work on Halo-Status, which was a hugely
+ * helpful resource in figuring out the flag bitfields used here.
+ * https://github.com/Chaosvex/Halo-Status
+ * https://github.com/Chaosvex/Halo-Status/blob/master/script/FlagDecoder.class.php
+ * https://github.com/Chaosvex/Halo-Status/blob/master/script/flags.php
+ */
+type PlayerFlags = {
+	lives: number;
+	health_percent: number;
+	shields_enabled: number;
+	respawn_time: number;
+	respawn_growth: number;
+	odd_man_out: number;
+	invisible: number;
+	suicide_penalty: number;
+	infinite_grenades: number;
+	weapon_set: number;
+	default_equipment: number;
+	indicator: number;
+	players_on_radar: number;
+	friend_indicators: number;
+	friendly_fire: number;
+	friendly_fire_penalty: number;
+	auto_balance: number;
+};
+type VehicleFlags = {
+	respawn_time: number;
+	red_team: number;
+	blue_team: number;
+};
+
+type GameFlags =
+	| BaseGameFlags
+	| CTFFlags
+	| SlayerFlags
+	| OddballFlags
+	| KingFlags
+	| RaceFlags;
+
+type BaseGameFlags = {
+	game_type: number;
+}
+
+type CTFFlags = BaseGameFlags & {
+	assault: number;
+	flag_must_reset: number;
+	flag_must_be_home: number;
+	single_flag_time: number;
+};
+
+type SlayerFlags = BaseGameFlags & {
+	death_bonus: number;
+	kill_penalty: number;
+	kill_in_order: number;
+};
+
+type OddballFlags = BaseGameFlags & {
+	random_start: number;
+	ball_speed_percent: number;
+	trait_with_ball: number;
+	trait_without_ball: number;
+	ball_type: number;
+	num_balls: number;
+}
+
+type KingFlags = BaseGameFlags & {
+	moving_hill: number;
+}
+
+type RaceFlags = BaseGameFlags & {
+	race_type: number;
+	team_scoring: number;
+}
+
+function decodePlayerFlags(value: number): PlayerFlags {
+	return new Struct<PlayerFlags>([
+		{ name: 'lives', size: 2 },
+		{ name: 'health_percent', size: 3 },
+		{ name: 'shields_enabled', size: 1 },
+		{ name: 'respawn_time', size: 2 },
+		{ name: 'respawn_growth', size: 2 },
+		{ name: 'odd_man_out', size: 1 },
+		{ name: 'invisible', size: 1 },
+		{ name: 'suicide_penalty', size: 2 },
+		{ name: 'infinite_grenades', size: 1 }, // Keep this off, you animals
+		{ name: 'weapon_set', size: 4 },
+		{ name: 'default_equipment', size: 1 },
+		{ name: 'indicator', size: 2 },
+		{ name: 'players_on_radar', size: 2 },
+		{ name: 'friend_indicators', size: 1 },
+		{ name: 'friendly_fire', size: 2 },
+		{ name: 'friendly_fire_penalty', size: 2 },
+		{ name: 'auto_balance', size: 1 },
+	]).decode(value);
+}
+
+function decodeVehicleFlags(value: number): VehicleFlags {
+	return new Struct<VehicleFlags>([
+		{ name: 'respawn_time', size: 3 },
+		{ name: 'red_team', size: 4 },
+		{ name: 'blue_team', size: 4 },
+	]).decode(value);
+}
+
+function decodeGameFlags(value: number): GameFlags {
+	// We didn't make a Union type, so we do this instead.
+	const gameType = value & 0x3;
+	const gameTypeField: Bitfield<BaseGameFlags> =
+			{ name: 'game_type', size: 3 };
+
+	switch (gameType) {
+		// This is not a valid type in the vanilla server, but apparently
+		// some extensions use game_type = 0 for custom game types.
+		// In this case, we don't know what the flags mean.
+		case 0: return { game_type: 0 };
+
+		case 1: return new Struct<CTFFlags>([
+			gameTypeField,
+			{ name: 'assault', size: 2 }, // Second bit unused
+			{ name: 'flag_must_reset', size: 1 },
+			{ name: 'flag_must_be_home', size: 1 },
+			{ name: 'single_flag_time', size: 3 },
+		]).decode(value);
+
+		case 2: return new Struct<SlayerFlags>([
+			gameTypeField,
+			{ name: 'death_bonus', size: 2 }, // Second bit unused
+			{ name: 'kill_penalty', size: 1 },
+			{ name: 'kill_in_order', size: 1 },
+		]).decode(value);
+
+		case 3: return new Struct<OddballFlags>([
+			gameTypeField,
+			{ name: 'random_start', size: 2 }, // Second bit unused
+			{ name: 'ball_speed_percent', size: 2 },
+			{ name: 'trait_with_ball', size: 2 },
+			{ name: 'trait_without_ball', size: 2 },
+			{ name: 'ball_type', size: 2 },
+			{ name: 'num_balls', size: 5 },
+		]).decode(value);
+
+		case 4: return new Struct<KingFlags>([
+			gameTypeField,
+			{ name: 'moving_hill', size: 1 },
+		]).decode(value);
+
+		case 5: return new Struct<RaceFlags>([
+			gameTypeField,
+			{ name: 'race_type', size: 2 },
+			{ name: 'team_scoring', size: 2 },
+		]).decode(value);
+
+		default: throw new Error(`Unrecognized gametype code ${gameType} in flags ${value}`);
 	}
 }
