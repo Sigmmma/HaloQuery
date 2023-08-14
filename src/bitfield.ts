@@ -29,17 +29,14 @@ export interface Bitfield<T> {
 export class Struct<T extends Record<string, number> = Record<string, number>> {
 	private fields: Bitfield<T>[];
 	private decodedFields: T;
-	private size: number;
 
 	/**
 	 * Creates a new bitfield struct handler that can encode and decode numbers
 	 * according to the given size and fields.
 	 *
-	 * @param size Size of packed value (e.g. 32 for a 32 bit integer).
-	 * @param fields The named fields of the bitfield, in left-to-right order.
+	 * @param fields The named fields of the bitfield, in right-to-left order.
 	 */
-	constructor(size: number, fields: Bitfield<T>[]) {
-		this.size = size;
+	constructor(fields: Bitfield<T>[]) {
 		this.fields = fields;
 		this.decodedFields = {} as T;
 		// TODO probably verify the sum of fieldDef sizes is <= size.
@@ -52,7 +49,6 @@ export class Struct<T extends Record<string, number> = Record<string, number>> {
 	decode(value: number): T {
 		let offset = 0;
 		this.decodedFields = this.fields.reduce<T>((record, def) => {
-			const shift = this.size - (offset + def.size);
 			const mask = Array(def.size)
 				.fill(null)
 				.reduce((value) => (value << 1) | 1, 0);
@@ -60,9 +56,7 @@ export class Struct<T extends Record<string, number> = Record<string, number>> {
 			// Need this cast because TypeScript complains that T[keyof T]
 			// might not be a number, but TypeScript also complains if we try to
 			// pass in a type for T where that happens, so this is probably safe.
-			(record[def.name] as number) = (value >> shift) & mask;
-
-			console.log(def, shift, mask);
+			(record[def.name] as number) = (value >> offset) & mask;
 
 			offset += def.size;
 			return record;
