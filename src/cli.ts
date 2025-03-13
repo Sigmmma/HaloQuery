@@ -106,7 +106,7 @@ function parseCLIAddress(value: string): CLIAddress {
 /** Parses and validates a port number. */
 function parsePort(value: string): number {
 	const port = Number.parseInt(value);
-	if (!Number.isNaN(port) && 0 < port && port < 0xFFFF) {
+	if (Number.isNaN(port) || 0 > port || port > 0xFFFF) {
 		throw new Error(`Invalid port: ${port}`);
 	}
 	return port;
