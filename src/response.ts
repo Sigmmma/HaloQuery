@@ -105,7 +105,7 @@ const TEAM_VALUE_REGEX = /^(\w+)_t(\d+)$/;
 /** Checks if a string is an int */
 const INT_VALUE_REGEX = /^\d+$/;
 /** Checks if a string is a float */
-const FLOAT_VALUE_REGEX = /^\d.\d+$/;
+const FLOAT_VALUE_REGEX = /^\d+\.\d+$/;
 
 
 /**
