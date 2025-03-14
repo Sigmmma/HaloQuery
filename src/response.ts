@@ -102,6 +102,10 @@ const HOSTNAME_REGEX = /^\\hostname\\(.*)\\gamever/;
 const PLAYER_VALUE_REGEX = /^(\w+)_(\d+)$/;
 /** Extracts key and index from team values, like "score_t1". */
 const TEAM_VALUE_REGEX = /^(\w+)_t(\d+)$/;
+/** Checks if a string is an int */
+const INT_VALUE_REGEX = /^\d+$/;
+/** Checks if a string is a float */
+const FLOAT_VALUE_REGEX = /^\d+\.\d+$/;
 
 
 /**
@@ -168,12 +172,17 @@ export function parseServerInfo(data: string): ServerInfo {
 
 /** Parses a server response value into the most appropriate type. */
 function parseValue(value: string): InfoValue {
-	const num = Number.parseInt(value);
-	if (Number.isNaN(num)) {
-		return value === '' ? null : value;
-	} else {
-		return num;
+	if (INT_VALUE_REGEX.test(value)) {
+		const num = Number.parseInt(value);
+		if (!Number.isNaN(num)) return num;
 	}
+
+	if (FLOAT_VALUE_REGEX.test(value)) {
+		const num = Number.parseFloat(value);
+		if (!Number.isNaN(num)) return num;
+	}
+
+	return value === '' ? null : value;
 }
 
 function decodePlayerFlags(value: number): PlayerFlags {
